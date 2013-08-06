@@ -5,8 +5,8 @@ import Data.Char
 main = do
     h <- connect "localhost" 5900
 
-    bytes <- readBytes 12 h
-    print $ bytes
+    version <- readVersion h
+    print $ version
 
     hPutStr h "RFB 003.007\n"
 
@@ -15,6 +15,11 @@ main = do
 
 connect :: String -> Int -> IO Handle
 connect host port = connectTo host (PortNumber (fromIntegral port))
+
+readVersion :: Handle -> IO String
+readVersion h = do
+    bytes <- readBytes 12 h
+    return $ map chr bytes
 
 readSecurityTypes :: Handle -> IO [Int]
 readSecurityTypes h = do
