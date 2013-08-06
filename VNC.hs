@@ -5,13 +5,19 @@ import Data.Char
 main = do
     h <- connect "localhost" 5900
 
+    -- Read server version
     version <- readVersion h
     print $ version
 
+    -- Use version 3.7
     hPutStr h "RFB 003.007\n"
 
+    -- Get security types
     securityTypes <- readSecurityTypes h
     print $ securityTypes
+
+    -- Use security type 1 (None)
+    hPutChar h (chr 1)
 
 connect :: String -> Int -> IO Handle
 connect host port = connectTo host (PortNumber (fromIntegral port))
