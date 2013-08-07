@@ -12,6 +12,7 @@ main = do
 
     -- Use version 3.7
     hPutStr h "RFB 003.007\n"
+    hFlush h
 
     -- Get security types
     securityTypes <- readSecurityTypes h
@@ -19,9 +20,11 @@ main = do
 
     -- Use security type 1 (None)
     hPutChar h (chr 1)
+    hFlush h
 
     -- Send init message
     hPutChar h (chr 1)
+    hFlush h
 
     -- Read init message
     initMessage <- readInitMessage h
