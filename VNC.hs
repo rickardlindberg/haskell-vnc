@@ -64,8 +64,15 @@ readFramebufferUpdate :: Handle -> IO String
 readFramebufferUpdate h = do
     messageType <- readU8 h
     case messageType of
-        0 -> return "Weee! :-)"
+        0 -> do
+                readU8 h
+                response <- readNumberOfRectangles h
+                return $ "Number of rectangles: " ++ show response
         _ -> return ":-("
+
+readNumberOfRectangles :: Handle -> IO Int
+readNumberOfRectangles h = do
+    readU16 h
 
 sendFramebufferUpdateRequest :: Handle -> IO ()
 sendFramebufferUpdateRequest h = do
@@ -73,8 +80,8 @@ sendFramebufferUpdateRequest h = do
     hPutChar h (chr 0)
     hPutChar h (chr 0) >> hPutChar h (chr 0)
     hPutChar h (chr 0) >> hPutChar h (chr 0)
-    hPutChar h (chr 1) >> hPutChar h (chr 0)
-    hPutChar h (chr 1) >> hPutChar h (chr 0)
+    hPutChar h (chr 0) >> hPutChar h (chr 10)
+    hPutChar h (chr 0) >> hPutChar h (chr 10)
     hFlush h
 
 readU8 :: Handle -> IO Int
