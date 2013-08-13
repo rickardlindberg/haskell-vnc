@@ -30,6 +30,13 @@ main = do
     initMessage <- readInitMessage h
     print $ initMessage
 
+    -- Send framebuffer message
+    sendFramebufferUpdateRequest h
+
+    -- Read framebuffer message
+    bufferMessage <- readFramebufferUpdate h
+    print $ bufferMessage
+
 connect :: String -> Int -> IO Handle
 connect host port = connectTo host (PortNumber (fromIntegral port))
 
@@ -52,6 +59,23 @@ readInitMessage h = do
     nameLength <- readU32 h
     name <- readBytes nameLength h
     return (width, height, 0, map chr name)
+
+readFramebufferUpdate :: Handle -> IO String
+readFramebufferUpdate h = do
+    messageType <- readU8 h
+    case messageType of
+        0 -> return "Weee! :-)"
+        _ -> return ":-("
+
+sendFramebufferUpdateRequest :: Handle -> IO ()
+sendFramebufferUpdateRequest h = do
+    hPutChar h (chr 3)
+    hPutChar h (chr 0)
+    hPutChar h (chr 0) >> hPutChar h (chr 0)
+    hPutChar h (chr 0) >> hPutChar h (chr 0)
+    hPutChar h (chr 1) >> hPutChar h (chr 0)
+    hPutChar h (chr 1) >> hPutChar h (chr 0)
+    hFlush h
 
 readU8 :: Handle -> IO Int
 readU8 h = do
