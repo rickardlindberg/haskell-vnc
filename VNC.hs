@@ -56,6 +56,7 @@ readInitMessage h = do
     width <- readU16 h
     height <- readU16 h
     pixelFormat <- readBytes 16 h
+    print $ "pixel format: " ++ show pixelFormat
     nameLength <- readU32 h
     name <- readBytes nameLength h
     return (width, height, 0, map chr name)
@@ -66,13 +67,42 @@ readFramebufferUpdate h = do
     case messageType of
         0 -> do
                 readU8 h
-                response <- readNumberOfRectangles h
-                return $ "Number of rectangles: " ++ show response
+                numberOfRectangles <- readNumberOfRectangles h
+                rectangles <- readRectangles numberOfRectangles h
+                return $ "Number of rectangles: " ++ show rectangles
         _ -> return ":-("
 
 readNumberOfRectangles :: Handle -> IO Int
 readNumberOfRectangles h = do
     readU16 h
+
+readRectangles :: Int -> Handle -> IO [Rectangle]
+readRectangles numberOfRectangles h =
+    case numberOfRectangles of
+        0 -> return []
+        n -> do
+                 rectangle <- readRectangle h
+                 restRectangles <- readRectangles (n - 1) h
+                 return (rectangle:restRectangles)
+
+readRectangle :: Handle -> IO Rectangle
+readRectangle h = do
+    x <- readU16 h
+    y <- readU16 h
+    width <- readU16 h
+    height <- readU16 h
+    encodingType <- readU32 h -- Should be S32
+    pixels <- readBytes (width * height * 4) h
+    return (Rectangle x y width height pixels)
+
+data Rectangle = Rectangle
+    { x      :: Int
+    , y      :: Int
+    , width  :: Int
+    , height :: Int
+    , pixels :: [Int]
+    }
+    deriving (Show)
 
 sendFramebufferUpdateRequest :: Handle -> IO ()
 sendFramebufferUpdateRequest h = do
