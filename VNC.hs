@@ -2,8 +2,24 @@ import Network
 import System.IO
 import Data.Char
 import Data.Bits
+import Graphics.UI.SDL as SDL
 
+main :: IO ()
 main = do
+    SDL.init [SDL.InitEverything]
+    SDL.setVideoMode 640 480 32 []
+    SDL.setCaption "Video Test!" "video test"
+    surface <- SDL.getVideoSurface
+    main2 surface
+    SDL.flip surface
+    eventLoop
+    SDL.quit
+    where
+        eventLoop = SDL.waitEventBlocking >>= checkEvent
+        checkEvent (KeyUp _) = return ()
+        checkEvent _         = eventLoop
+
+main2 surface = do
     h <- connect "localhost" 5900
 
     -- Read server version
@@ -34,8 +50,22 @@ main = do
     sendFramebufferUpdateRequest h
 
     -- Read framebuffer message
-    bufferMessage <- readFramebufferUpdate h
-    print $ bufferMessage
+    rectangles <- readFramebufferUpdate h
+    print $ rectangles
+    drawRectangles rectangles surface
+
+drawRectangles :: [Rectangle] -> SDL.Surface -> IO ()
+drawRectangles [Rectangle x y width height pixels] surface = do
+    mapM_ (putPixel surface) pixels
+
+putPixel :: SDL.Surface -> OurPixel -> IO ()
+putPixel surface (OurPixel x y r g b) = do
+    let rect = Just $ SDL.Rect x y 1 1
+    let color = SDL.Pixel ((shiftL (fromIntegral r) 16)
+                       .|. (shiftL (fromIntegral g) 8)
+                       .|. (fromIntegral b))
+    SDL.fillRect surface rect color
+    return ()
 
 connect :: String -> Int -> IO Handle
 connect host port = connectTo host (PortNumber (fromIntegral port))
@@ -61,7 +91,7 @@ readInitMessage h = do
     name <- readBytes nameLength h
     return (width, height, 0, map chr name)
 
-readFramebufferUpdate :: Handle -> IO String
+readFramebufferUpdate :: Handle -> IO [Rectangle]
 readFramebufferUpdate h = do
     messageType <- readU8 h
     case messageType of
@@ -69,8 +99,8 @@ readFramebufferUpdate h = do
                 readU8 h
                 numberOfRectangles <- readNumberOfRectangles h
                 rectangles <- readRectangles numberOfRectangles h
-                return $ "Number of rectangles: " ++ show rectangles
-        _ -> return ":-("
+                return rectangles
+        _ -> fail "Gaaaah!"
 
 readNumberOfRectangles :: Handle -> IO Int
 readNumberOfRectangles h = do
@@ -93,16 +123,32 @@ readRectangle h = do
     height <- readU16 h
     encodingType <- readU32 h -- Should be S32
     pixels <- readBytes (width * height * 4) h
-    return (Rectangle x y width height pixels)
+    return (Rectangle x y width height (buildPixelList pixels x y x width))
+
+buildPixelList :: [Int] -> Int -> Int -> Int -> Int -> [OurPixel]
+buildPixelList [] _ _ _ _ = []
+buildPixelList (a:r:g:b:rest) x y startX width =
+    let (nextX, nextY) = if (x - startX + 1) >= width
+                             then (startX, y+1)
+                             else (x+1, y)
+    in OurPixel x y r g b : buildPixelList rest nextX nextY startX width
 
 data Rectangle = Rectangle
     { x      :: Int
     , y      :: Int
     , width  :: Int
     , height :: Int
-    , pixels :: [Int]
+    , pixels :: [OurPixel]
     }
     deriving (Show)
+
+data OurPixel = OurPixel
+    { px :: Int
+    , py :: Int
+    , r :: Int
+    , g :: Int
+    , b :: Int
+    } deriving (Show)
 
 sendFramebufferUpdateRequest :: Handle -> IO ()
 sendFramebufferUpdateRequest h = do
@@ -110,8 +156,8 @@ sendFramebufferUpdateRequest h = do
     hPutChar h (chr 0)
     hPutChar h (chr 0) >> hPutChar h (chr 0)
     hPutChar h (chr 0) >> hPutChar h (chr 0)
-    hPutChar h (chr 0) >> hPutChar h (chr 10)
-    hPutChar h (chr 0) >> hPutChar h (chr 10)
+    hPutChar h (chr 0) >> hPutChar h (chr 1000)
+    hPutChar h (chr 0) >> hPutChar h (chr 700)
     hFlush h
 
 readU8 :: Handle -> IO Int
